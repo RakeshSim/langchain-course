@@ -18,4 +18,4 @@ zsh: sure you want to delete all 3 files in /Users/rakeshyadav/TCS-AI-Training/L
 (base) rakeshyadav@Rakeshs-MacBook-Pro langchain-course % ls
 (base) rakeshyadav@Rakeshs-MacBook-Pro langchain-course % uv init
 Initialized project `langchain-course`
-(base) rakeshyadav@Rakeshs-MacBook-Pro langchain-course % uv add langchain langchain-openai langchain-tavily tavily-python python-dotenv black isort
+(base) rakeshyadav@Rakeshs-MacBook-Pro langchain-course % uv add langchain langchain-openai langchain-tavily tavily-python python-dotenv black isort  langchain-ollama
