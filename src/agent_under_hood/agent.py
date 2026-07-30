@@ -73,39 +73,49 @@ def run_agent(
             logger.info("final answer produced")
             return ai_message.content
 
-        tool_call = tool_calls[0]
-        tool_name = tool_call.get("name")
-        tool_args = tool_call.get("args", {})
-        tool_call_id = tool_call.get("id")
-
-        logger.info("tool selected: %s(%s)", tool_name, tool_args)
-
-        tool_to_use = tools_dict.get(tool_name)
         messages.append(ai_message)
 
-        if tool_to_use is None:
-            logger.warning("unknown tool requested: %s", tool_name)
-            messages.append(
-                ToolMessage(
-                    content=f"Error: tool '{tool_name}' does not exist.",
-                    tool_call_id=tool_call_id,
-                )
-            )
-            continue
+        # Handle every tool call in this message, not just the first - the
+        # OpenAI API requires a response for each tool_call_id an assistant
+        # message contains before the next turn, and a model is free to
+        # request several independent tools in one turn (e.g. two unrelated
+        # lookups for one question). Answering only the first one here left
+        # the later ones unanswered, and the *next* request would then be
+        # rejected by the API with a 400 (found via a real multi-tool
+        # question during manual testing, not covered by the original
+        # single-tool-call test fixtures).
+        for tool_call in tool_calls:
+            tool_name = tool_call.get("name")
+            tool_args = tool_call.get("args", {})
+            tool_call_id = tool_call.get("id")
 
-        try:
-            observation = tool_to_use.invoke(tool_args)
-            logger.info("tool result: %s", observation)
-            messages.append(
-                ToolMessage(content=str(observation), tool_call_id=tool_call_id)
-            )
-        except Exception as exc:
-            # Fed back to the LLM as the tool result, not raised — lets the
-            # model see what went wrong and recover (e.g. retry with a
-            # valid argument) instead of crashing the whole run.
-            logger.warning("tool '%s' failed: %s", tool_name, exc)
-            messages.append(
-                ToolMessage(content=f"Error: {exc}", tool_call_id=tool_call_id)
-            )
+            logger.info("tool selected: %s(%s)", tool_name, tool_args)
+
+            tool_to_use = tools_dict.get(tool_name)
+
+            if tool_to_use is None:
+                logger.warning("unknown tool requested: %s", tool_name)
+                messages.append(
+                    ToolMessage(
+                        content=f"Error: tool '{tool_name}' does not exist.",
+                        tool_call_id=tool_call_id,
+                    )
+                )
+                continue
+
+            try:
+                observation = tool_to_use.invoke(tool_args)
+                logger.info("tool result: %s", observation)
+                messages.append(
+                    ToolMessage(content=str(observation), tool_call_id=tool_call_id)
+                )
+            except Exception as exc:
+                # Fed back to the LLM as the tool result, not raised - lets
+                # the model see what went wrong and recover (e.g. retry with
+                # a valid argument) instead of crashing the whole run.
+                logger.warning("tool '%s' failed: %s", tool_name, exc)
+                messages.append(
+                    ToolMessage(content=f"Error: {exc}", tool_call_id=tool_call_id)
+                )
 
     raise AgentError(f"No final answer after {settings.max_iterations} iterations")
