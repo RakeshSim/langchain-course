@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    agent_model: str = Field(default="qwen3:1.7b", alias="AGENT_MODEL")
+    agent_model: str = Field(default="ollama:qwen3:1.7b", alias="AGENT_MODEL")
     max_iterations: int = Field(default=10, alias="AGENT_MAX_ITERATIONS")
     ollama_base_url: str = Field(
         default="http://localhost:11434", alias="OLLAMA_BASE_URL"

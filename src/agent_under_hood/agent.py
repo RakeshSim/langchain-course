@@ -36,18 +36,32 @@ class AgentError(Exception):
 
 
 @traceable(name="LangChain Agent Loop")
-def run_agent(question: str) -> str:
-    tools_dict = {t.name: t for t in ALL_TOOLS}
+def run_agent(
+    question: str,
+    history: list[BaseMessage] | None = None,
+    system_prompt: str = SYSTEM_PROMPT,
+    tools: list | None = None,
+) -> str:
+    """Run the tool-calling agent loop.
 
-    llm = init_chat_model(f"ollama:{settings.agent_model}", temperature=0)
-    llm_with_tools = llm.bind_tools(ALL_TOOLS)
+    `history` and `system_prompt`/`tools` are optional so existing callers
+    (the CLI, the tests) get the exact original single-shot shopping-agent
+    behavior unchanged. A caller with a different persona (e.g. a RAG-backed
+    personal-assistant service) passes its own system_prompt/tools and prior
+    conversation turns via `history`.
+    """
+    tool_list = tools if tools is not None else ALL_TOOLS
+    tools_dict = {t.name: t for t in tool_list}
+
+    llm = init_chat_model(settings.agent_model, temperature=0)
+    llm_with_tools = llm.bind_tools(tool_list)
 
     logger.info("question: %s", question)
 
-    messages: list[BaseMessage] = [
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=question),
-    ]
+    messages: list[BaseMessage] = [SystemMessage(content=system_prompt)]
+    if history:
+        messages.extend(history)
+    messages.append(HumanMessage(content=question))
 
     for iteration in range(1, settings.max_iterations + 1):
         logger.info("iteration %d", iteration)
